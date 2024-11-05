@@ -1,101 +1,165 @@
-import Image from "next/image";
+"use client";
+
+import { isSafe, solver } from "@/utils/solver";
+import classNames from "classnames";
+import { useState } from "react";
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+  const emptyPuzzle = () => {
+    return [
+      [null, null, null, null, null, null, null, null, null],
+      [null, null, null, null, null, null, null, null, null],
+      [null, null, null, null, null, null, null, null, null],
+      [null, null, null, null, null, null, null, null, null],
+      [null, null, null, null, null, null, null, null, null],
+      [null, null, null, null, null, null, null, null, null],
+      [null, null, null, null, null, null, null, null, null],
+      [null, null, null, null, null, null, null, null, null],
+      [null, null, null, null, null, null, null, null, null],
+    ];
+  };
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+  const [puzzle, setPuzzle] = useState<(number | null)[][]>(emptyPuzzle());
+  const [inputPuzzle, setInputPuzzle] = useState<(number | null)[][]>(
+    emptyPuzzle()
+  );
+  const [time, setTime] = useState<number>(0);
+
+  const setCell = (row: number, col: number, num: number | null) => {
+    setPuzzle((prev) => {
+      const newPuzzle = JSON.parse(JSON.stringify(prev));
+      newPuzzle[row][col] = num;
+      return newPuzzle;
+    });
+  };
+
+  const handleSolve = () => {
+    setInputPuzzle(puzzle);
+    const start = new Date().getTime();
+    const result = solver(puzzle);
+    const end = new Date().getTime();
+    setTime(end - start);
+    if (!result) {
+      alert("No solution");
+      return;
+    }
+    setPuzzle(result);
+  };
+
+  return (
+    <div className="flex flex-col gap-2 m-10">
+      <h1 className="text-3xl text-center font-bold">Sudoku Solver</h1>
+      <div className="w-max mx-auto">
+        {puzzle.map((row, i) => (
+          <div
+            key={i}
+            className={classNames([
+              i % 3 === 0 ? "border-t" : "",
+              i === 8 ? "border-b" : "",
+              "border-black",
+            ])}
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
+            {row.map((col, j) => (
+              <input
+                key={j}
+                type="number"
+                min="1"
+                max="9"
+                data-cell
+                data-row={i}
+                data-col={j}
+                className={classNames([
+                  "size-10 border text-center",
+                  j % 3 === 0 ? "border-l-black" : "",
+                  j === 8 ? "border-r-black" : "",
+                  inputPuzzle[i][j] !== null ? "bg-gray-300" : "",
+                ])}
+                value={col === null ? "" : col}
+                onChange={(e) => {
+                  const val = Number(e.target.value);
+                  if (Number.isNaN(val) || val < 1 || val > 9) {
+                    setCell(i, j, null);
+                    return;
+                  }
+                  if (!isSafe(puzzle, i, j, val)) {
+                    alert("Invalid input on this cell. Please try again.");
+                    return;
+                  }
+                  setCell(i, j, val);
+                  let nextInput: HTMLElement | null = null;
+                  if (j < 8) {
+                    nextInput = document.querySelector(
+                      `[data-cell][data-row="${i}"][data-col="${j + 1}"]`
+                    );
+                  } else if (i < 8) {
+                    nextInput = document.querySelector(
+                      `[data-cell][data-row="${i + 1}"][data-col="0"]`
+                    );
+                  }
+                  if (nextInput) {
+                    nextInput.focus();
+                  }
+                }}
+                onKeyDown={(e) => {
+                  // handle keydown for arrow up down left right
+                  let nextInput: HTMLInputElement | null = null;
+                  if (e.key.startsWith("Arrow")) {
+                    e.preventDefault();
+                  }
+                  switch (e.key) {
+                    case "ArrowLeft":
+                      if (j === 0) return;
+                      nextInput = document.querySelector(
+                        `[data-cell][data-row="${i}"][data-col="${j - 1}"]`
+                      );
+                      break;
+                    case "ArrowRight":
+                      if (j === 8) return;
+                      nextInput = document.querySelector(
+                        `[data-cell][data-row="${i}"][data-col="${j + 1}"]`
+                      );
+                      break;
+                    case "ArrowDown":
+                      if (i === 8) return;
+                      nextInput = document.querySelector(
+                        `[data-cell][data-row="${i + 1}"][data-col="${j}"]`
+                      );
+                      break;
+                    case "ArrowUp":
+                      if (i === 0) return;
+                      nextInput = document.querySelector(
+                        `[data-cell][data-row="${i - 1}"][data-col="${j}"]`
+                      );
+                      break;
+                  }
+                  if (nextInput) {
+                    (nextInput as HTMLInputElement).focus();
+                  }
+                }}
+              />
+            ))}
+          </div>
+        ))}
+      </div>
+      {time !== 0 && <div className="text-center">Solve in {time}ms</div>}
+      <div className="flex gap-2 justify-center">
+        <button
+          className="bg-blue-500 text-white rounded-md px-4 py-2 hover:bg-blue-600 transition-all focus:ring-2 ring-blue-200"
+          onClick={handleSolve}
         >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
+          Solve
+        </button>
+        <button
+          className="bg-gray-500 text-white rounded-md px-4 py-2 hover:bg-gray-600 transition-all focus:ring-2 ring-gray-200"
+          onClick={() => {
+            setPuzzle(emptyPuzzle());
+            setInputPuzzle(emptyPuzzle());
+            setTime(0);
+          }}
         >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+          Clear
+        </button>
+      </div>
     </div>
   );
 }
